@@ -24,7 +24,7 @@
 
 using namespace std;
 
-#define MYPORT "4950"    // the port users will be connecting to
+#define MYPORT "6969"    // the port users will be connecting to
 
 #define MAXBUFLEN 100
 
