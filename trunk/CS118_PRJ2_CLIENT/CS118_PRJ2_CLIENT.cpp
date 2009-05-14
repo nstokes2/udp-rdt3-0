@@ -24,7 +24,7 @@ using namespace std;
 
 #define STARTPORT 10000 	// beginning of port pool we can use
 #define ENDPORT 65535	// end of port pool we can use
-#define MMS 100
+#define MMS 1500
 
 
 void usage(){
@@ -186,5 +186,13 @@ int main(int argc, char * const argv[]) {
 		perror("talker: sendto");
 		return EXIT_FAILURE;
 	}
+	char buf2[MMS];
+	if (recvfrom(incomingSock, buf2, MMS-1 , 0,
+		NULL, 0) == -1) {
+		perror("recvfrom");
+		exit(1);
+	}
+	cout << "SERVER SAYS: " << buf2;
+
 	return EXIT_SUCCESS;
 }
