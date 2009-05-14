@@ -156,7 +156,7 @@ int main(void)
 			for (size_t i=0; i<5; i++){
 				command[i] = buf2[i];
 			}
-
+			command[4]='\0';
 			if(!strcmp(command,"QUIT")){
 				printf("Session from %s closed\n",
 					inet_ntop(remote_addr.ss_family,
