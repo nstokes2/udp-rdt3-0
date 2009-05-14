@@ -151,8 +151,23 @@ int main(void)
 					get_in_addr((struct sockaddr *)&remote_addr),
 					s, sizeof s));
 			printf("\tOutbound port: %s\n\tInbound(ACK) port: %s\n",port, portBuf);
-			recvfrom(incomingSock, buf, MMS-1 , 0, NULL, 0);
-			cout << buf;
+			char buf2[MMS];
+			recvfrom(incomingSock, buf2, MMS-1 , 0, NULL, 0);
+			for (size_t i=0; i<5; i++){
+				command[i] = buf2[i];
+			}
+
+			if(!strcmp(command,"QUIT")){
+				printf("Session from %s closed\n",
+					inet_ntop(remote_addr.ss_family,
+					get_in_addr((struct sockaddr *)&remote_addr),
+					s, sizeof s));
+				close(incomingSock);
+				close(requestSock);
+			}
+			cout << buf2;
+
+
 			exit(0);
 		}
     }

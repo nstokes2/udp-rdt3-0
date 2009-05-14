@@ -164,7 +164,7 @@ int main(int argc, char * const argv[]) {
 	out = createOutgoingSocket(host.c_str(),ackport,requestSock);
 
 
-
+	requestMessage = "";
 	if(argc>3){
 		string filename = argv[3];
 		requestMessage = "RETR " + filename + "\n\n";
