@@ -25,8 +25,9 @@
 using namespace std;
 
 #define MYPORT "6969"    // the port users will be connecting to
-
-#define MAXBUFLEN 100
+#define STARTPORT 10000 	// beginning of port pool we can use
+#define ENDPORT 65535	// end of port pool we can use
+#define MMS 100
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -37,84 +38,125 @@ void *get_in_addr(struct sockaddr *sa)
 
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
+addrinfo* createOutgoingSocket(const char* host, const char* port, int& sockfd){
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
 
+	memset (&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+
+	if ((rv = getaddrinfo(host, port, &hints, &servinfo)) != 0){
+	 cerr << "Failed while getaddrinfo()\n";
+	 fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+
+	}
+
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+	 if ((sockfd = socket(p->ai_family, p->ai_socktype,
+			 p->ai_protocol)) == -1) {
+		 perror("talker: socket");
+		 continue;
+	 }
+	 break;
+	}
+	if (p == NULL) {
+	cerr << "Failed to create socket";
+	}
+	return p;
+}
+addrinfo* createReceivingSocket(const char* port, int& sockfd){
+	struct addrinfo hints, *servinfo, *p;
+	int rv;
+
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC; // set to AF_INET to force IPv4
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_PASSIVE; // use my IP
+	if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+	}
+	// loop through all the results and bind to the first we can
+	for(p = servinfo; p != NULL; p = p->ai_next) {
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
+				p->ai_protocol)) == -1) {
+			perror("listener: socket");
+			continue;
+		}
+
+		if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+			close(sockfd);
+			perror("listener: bind");
+			continue;
+		}
+
+		break;
+	}
+	if (p == NULL) {
+		fprintf(stderr, "listener: failed to bind socket\n");
+	}
+	freeaddrinfo(servinfo);
+	return p;
+}
 int main(void)
 {
-    int sockfd;
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
-    int numbytes;
+    int recv_sockfd;
+    struct addrinfo *p;
     struct sockaddr_storage remote_addr;
-    char buf[MAXBUFLEN];
     size_t addr_len;
     char s[INET6_ADDRSTRLEN];
+    p = createReceivingSocket(MYPORT,recv_sockfd);
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC; // set to AF_INET to force IPv4
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_PASSIVE; // use my IP
-
-    if ((rv = getaddrinfo(NULL, MYPORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
-    }
-
-    // loop through all the results and bind to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
-            perror("listener: socket");
-            continue;
-        }
-
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("listener: bind");
-            continue;
-        }
-
-        break;
-    }
-
-    if (p == NULL) {
-        fprintf(stderr, "listener: failed to bind socket\n");
-        return 2;
-    }
-
-    freeaddrinfo(servinfo);
     pid_t child;
-    cout << "Listening on port " << MYPORT << "\nWaiting for incoming connection\n";
+    cout << "Listening on port " << MYPORT << "\nWaiting for incoming connections\n";
+    char buf[MMS];
     while(1){
 		addr_len = sizeof remote_addr;
-		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
-			(struct sockaddr *)&remote_addr, (socklen_t *)&addr_len)) == -1) {
-			perror("recvfrom");
-			exit(1);
-		}
+		recvfrom(recv_sockfd, buf, MMS-1 , 0, (struct sockaddr *)&remote_addr, (socklen_t *)&addr_len);
 		if(!(child=fork())){
-			close(sockfd);
-			string respondMessage = "OK";
-			string remoteAddr = inet_ntop(remote_addr.ss_family,
-					get_in_addr((struct sockaddr *)&remote_addr),
-					s, sizeof s);
-			sendto(sockfd, respondMessage.c_str(), respondMessage.size(), 0,
-						 p->ai_addr, p->ai_addrlen);
-			printf("listener: got packet from %s\n",
+			close(recv_sockfd);
+			char command[5];
+			for (size_t i=0; i<5; i++){
+				command[i] = buf[i];
+			}
+			char port[6];
+			char portBuf[6];
+			struct addrinfo *out, *in;
+			int requestSock;
+			int incomingSock;
+			command[4]='\0';
+			if(!strcmp(command,"INIT")){
+				for (size_t i=5; i<10; i++){
+					port[i-5] = buf[i];
+				}
+				port[5]='\0';
+				srand ( time(NULL) );
+				int incomingPort = rand() %(ENDPORT-STARTPORT) + STARTPORT + 1;
+				sprintf(portBuf,"%d",incomingPort);
+				string remoteAddr = inet_ntop(remote_addr.ss_family,
+									get_in_addr((struct sockaddr *)&remote_addr),
+									s, sizeof s);
+				out = createOutgoingSocket(remoteAddr.c_str(),port,requestSock);
+				in = createReceivingSocket(portBuf,incomingSock);
+				string returnBuf = portBuf;
+				returnBuf = "GAHD " + returnBuf;
+				returnBuf += "\n\n";
+				sendto(requestSock, returnBuf.c_str(), returnBuf.size()+2, 0, out->ai_addr, out->ai_addrlen);
+			}
+			else{
+				exit(0);
+			}
+			printf("New session from %s\n",
 					inet_ntop(remote_addr.ss_family,
 					get_in_addr((struct sockaddr *)&remote_addr),
 					s, sizeof s));
+			printf("\tOutbound port: %s\n\tInbound(ACK) port: %s\n",port, portBuf);
+			recvfrom(incomingSock, buf, MMS-1 , 0, NULL, 0);
+			cout << buf;
 			exit(0);
 		}
     }
-//    printf("listener: got packet from %s\n",
-//        inet_ntop(remote_addr.ss_family,
-//            get_in_addr((struct sockaddr *)&remote_addr),
-//            s, sizeof s));
-//    printf("listener: packet is %d bytes long\n", numbytes);
-//    buf[numbytes] = '\0';
-//    printf("listener: packet contains \"%s\"\n", buf);
-
-    close(sockfd);
+    close(recv_sockfd);
 
     return 0;
 }
