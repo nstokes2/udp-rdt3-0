@@ -1,6 +1,6 @@
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0
 
-OBJS =		CS118_PRJ2_SERVER.o
+OBJS =		wcserver.o
 
 LIBS =
 
