@@ -1,5 +1,5 @@
 //============================================================================
-// Name        : CS118_PRJ2_SERVER.cpp
+// Name        : wcserver.cpp
 // Author      : Akhil Rangaraj, Justin Kiang
 // Version     :
 // Copyright   : Copyright 2009 White Castle Development Inc.
@@ -21,13 +21,77 @@
 #include <netdb.h>
 #include <iostream>
 #include <string.h>
-
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <signal.h>
 using namespace std;
 
 #define MYPORT "6969"    // the port users will be connecting to
 #define STARTPORT 10000 	// beginning of port pool we can use
 #define ENDPORT 65535	// end of port pool we can use
 #define MMS 1400
+
+
+
+pid_t child;
+/*
+ * WCPACKET
+ * fields:
+ * wc_seqnum: sequence number
+ * size: data size
+ * md5sum: packet md5
+ * data: file data;
+ */
+
+#define MAXPACKETDATA	1024 //packet can hold 1024 bytes.
+ 
+struct wcpacket_t
+{
+	int seqnum;
+	int flag;
+	//some kind of shit
+	char* data[MAXPACKETDATA];
+	int size;
+};
+
+
+/* 
+ * packet_t* create_packet(FILE* fp, int sequence)
+ * Create a wcpacket out of file data with sequence number sequence
+ * fp - pointer to file
+ * sequence - sequence number
+ * returns pointer to packet, or NULL on failure
+ */
+
+wcpacket_t* create_packet(FILE* fp, int sequence)
+{
+	if(!fp)
+		return NULL;
+	wcpacket_t* new_packet = new wcpacket_t;
+	new_packet->size = fread(new_packet->data, 1, MAXPACKETDATA, fp); //read data
+	if (new_packet->size == 0)
+	{
+		cerr << "empty packet";
+		return NULL; //assume EOF lol
+	}
+	
+	new_packet->seqnum = sequence;
+	return new_packet;
+}
+
+
+/*
+* void handle_sigchld(int signal)
+* signal handler for SIGCHLD (child has exited)
+* waits on child process and cleans up
+*/
+void handle_sigchld(int signal)
+{
+	
+		int status;
+		waitpid(child, &status, WNOHANG);
+		cout << "Child process " << child <<" exited with exit status " << WEXITSTATUS(status)<< endl;
+}
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -37,6 +101,8 @@ void *get_in_addr(struct sockaddr *sa)
     }
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
+
+
 addrinfo* createOutgoingSocket(const char* host, const char* port, int& sockfd){
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
@@ -60,6 +126,8 @@ addrinfo* createOutgoingSocket(const char* host, const char* port, int& sockfd){
 	}
 	return p;
 }
+
+
 addrinfo* createReceivingSocket(const char* port, int& sockfd){
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
@@ -89,6 +157,8 @@ addrinfo* createReceivingSocket(const char* port, int& sockfd){
 	freeaddrinfo(servinfo);
 	return p;
 }
+
+
 int main(void)
 {
     int recv_sockfd;
@@ -96,9 +166,18 @@ int main(void)
     struct sockaddr_storage remote_addr;
     size_t addr_len;
     char s[INET6_ADDRSTRLEN];
+    
+    /* wait for our children*/
+    struct sigaction sigchld_action; 
+	memset (&sigchld_action, 0, sizeof (sigchld_action)); 
+	sigchld_action.sa_handler = &handle_sigchld; 
+	sigchld_action.sa_flags = SA_RESTART;
+	sigaction (SIGCHLD, &sigchld_action, NULL);  //handler for SIGCHLD
+	
+	
+	
     p = createReceivingSocket(MYPORT,recv_sockfd);
 
-    pid_t child;
     cout << "Listening on port " << MYPORT << "\nWaiting for incoming connections\n";
     char buf[MMS];
     while(1){
@@ -160,15 +239,20 @@ int main(void)
 					cout << "File " << filename << " not found";
 				}
 				else{
-					long size;
-					fseek(content, 0, SEEK_END);
-					size = ftell(content);
-					rewind(content);
-					char* filebuffer = (char*)malloc(sizeof(char*)*size);
-					fread(filebuffer, 1, size, content);
-					fclose(content);
-					cout << "X" << size <<"X";
-					sendto(requestSock, filebuffer, size, 0, out->ai_addr, out->ai_addrlen);
+					int i=0;
+					while(!feof(content))
+					{
+						wcpacket_t* send = create_packet(content, i++);
+						if(!send)
+						{
+							cerr << "SHET SHET GUIZ"<<endl;
+							break;
+						}
+						else {
+							sendto(requestSock, send, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+							delete send;
+						}
+					}
 				}
 				// REQUEST TO RETRIEVE FILE
 			}

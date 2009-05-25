@@ -27,6 +27,25 @@ using namespace std;
 #define MMS 1500
 
 
+/*
+ * WCPACKET
+ * fields:
+ * wc_seqnum: sequence number
+ * size: data size
+ * md5sum: packet md5
+ * data: file data;
+ */
+
+#define MAXPACKETDATA	1024 //packet can hold 1024 bytes.
+
+struct wcpacket_t
+{
+	int seqnum;
+	//some kind of shit
+	char* data[MAXPACKETDATA];
+	int size;
+};
+
 void usage(){
 	string usage_message = "usage: wcftp server_host server_port [filename] [Pl] [Pc]\ntype: wcftp help for more information\n";
 	cout << usage_message;
@@ -186,13 +205,12 @@ int main(int argc, char * const argv[]) {
 		perror("talker: sendto");
 		return EXIT_FAILURE;
 	}
-	char buf2[MMS];
-	if (recvfrom(incomingSock, buf2, MMS-1 , 0,
-		NULL, 0) == -1) {
-		perror("recvfrom");
-		exit(1);
+	
+/*	wcpacket_t* incpacket;
+	while(recvfrom(incomingSock, incpacket, sizeof(wcpacket_t), 0,NULL, 0) != -1) {
+		
+		//cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n"<<incpacket->data <<endl;
 	}
-	cout << "SERVER SAYS: " << buf2;
-
+*/
 	return EXIT_SUCCESS;
 }
