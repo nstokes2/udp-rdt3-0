@@ -5,9 +5,7 @@
 // Copyright   : Copyright 2009 White Castle Development Inc.
 // Description : Hello World in C, Ansi-style
 //============================================================================
-/*
-** listener.c -- a datagram sockets "server" demo
-*/
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +22,9 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <signal.h>
+
+#include <iostream>
+#include <fstream>
 using namespace std;
 
 #define MYPORT "6969"    // the port users will be connecting to
@@ -38,6 +39,7 @@ pid_t child;
  * WCPACKET
  * fields:
  * wc_seqnum: sequence number
+ * flag: TBD
  * size: data size
  * md5sum: packet md5
  * data: file data;
@@ -50,31 +52,33 @@ struct wcpacket_t
 	int seqnum;
 	int flag;
 	//some kind of shit
-	char* data[MAXPACKETDATA];
+	char data[MAXPACKETDATA];
 	int size;
 };
 
 
 /* 
- * packet_t* create_packet(FILE* fp, int sequence)
+ * packet_t* create_packet(ifstream* fp, int sequence)
  * Create a wcpacket out of file data with sequence number sequence
  * fp - pointer to file
  * sequence - sequence number
  * returns pointer to packet, or NULL on failure
  */
 
-wcpacket_t* create_packet(FILE* fp, int sequence)
+wcpacket_t* create_packet(void* is, int sequence)
 {
-	if(!fp)
-		return NULL;
-	wcpacket_t* new_packet = new wcpacket_t;
-	new_packet->size = fread(new_packet->data, 1, MAXPACKETDATA, fp); //read data
-	if (new_packet->size == 0)
-	{
-		cerr << "empty packet";
-		return NULL; //assume EOF lol
-	}
 	
+	iostream* fp = (iostream*)is;
+	if(!fp)
+	{
+		cout << "FILE IS DEAD" <<endl;
+		return NULL;
+	}
+	wcpacket_t* new_packet = new wcpacket_t;
+	memset(new_packet->data, 0, MAXPACKETDATA);
+	fp->read(new_packet->data, MAXPACKETDATA);
+	cout << "packet: "<< new_packet->seqnum << "\n data: \n";
+	printf("%s\n", new_packet->data);
 	new_packet->seqnum = sequence;
 	return new_packet;
 }
@@ -234,31 +238,38 @@ int main(void)
 					filename[i-5] = buf2[i];
 				}
 				cout << "\t" << remoteAddr << " asks for " << filename << "\n";
-				FILE* content = fopen(filename, "r");
+				ifstream content;
+				content.open(filename);
 				if(!content){
 					cout << "File " << filename << " not found";
 				}
 				else{
+					cout << "I AM PREPARING TO SEND"<<endl;
 					int i=0;
-					while(!feof(content))
-					{
-						wcpacket_t* send = create_packet(content, i++);
+					long sentdata = 0;
+					//get file size so things don't explode
+					//things still explode anyways.
+					while(content.good()){
+						wcpacket_t* send = create_packet(&content, i++); //create a packet out of our file
 						if(!send)
 						{
 							cerr << "SHET SHET GUIZ"<<endl;
 							break;
 						}
 						else {
+							sentdata+= send->size;
 							sendto(requestSock, send, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
 							delete send;
 						}
 					}
+					
 				}
 				// REQUEST TO RETRIEVE FILE
 			}
 
-
-			exit(0);
+			close(incomingSock);
+			close(requestSock);
+			exit(9001);
 		}
     }
     close(recv_sockfd);
