@@ -1,5 +1,5 @@
 //============================================================================
-// Name        : CS118_PRJ2_CLIENT.cpp
+// Name        : wcclient.cpp
 // Author      : Akhil Rangaraj, Justin Kiang
 // Version     :
 // Copyright   : Copyright 2009 White Castle Development Inc.
@@ -41,16 +41,35 @@ using namespace std;
 struct wcpacket_t
 {
 	int seqnum;
+	int flag;
 	//some kind of shit
-	char* data[MAXPACKETDATA];
+	char data[MAXPACKETDATA];
 	int size;
 };
 
-void usage(){
-	string usage_message = "usage: wcftp server_host server_port [filename] [Pl] [Pc]\ntype: wcftp help for more information\n";
-	cout << usage_message;
+/*
+ * wcpacket_t* recvpacket(int sockfd)
+ * Get a packet from the server
+ * sockfd - sock that we're listening on
+ * Return the filled out packet, or  NULL if there is an error
+ */
+wcpacket_t* recvpacket(int sockfd)
+{
+	if(!sockfd)
+		return NULL;
+	
+	wcpacket_t* recvd = new wcpacket_t;
+	if(recvfrom(sockfd, recvd, sizeof(wcpacket_t), 0,NULL, 0) <= 0)
+	{
+		perror("recv failure");
+		delete recvd;
+		return NULL;
+	}
+	return recvd;
+	
 }
-void dumpReadme(){
+
+void usage(){
 	ifstream readme ("README");
 	string line = "";
 	if(readme.is_open()){
@@ -61,9 +80,11 @@ void dumpReadme(){
 		readme.close();
 	}
 	else{
-		usage();
+		//WTF WHY HAVE A SEPARATE FX FOR USAGE
+		cout << "usage: wcftp server_host server_port [filename] [Pl] [Pc]\ntype: wcftp help for more information\n";
 	}
 }
+
 addrinfo* createOutgoingSocket(const char* host, const char* port, int& sockfd){
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
@@ -91,6 +112,7 @@ addrinfo* createOutgoingSocket(const char* host, const char* port, int& sockfd){
 	}
 	return p;
 }
+
 addrinfo* createReceivingSocket(const char* port, int& sockfd){
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
@@ -126,7 +148,7 @@ addrinfo* createReceivingSocket(const char* port, int& sockfd){
 }
 int main(int argc, char * const argv[]) {
 	if(argc>1 &&!strcmp(argv[1],"help")){
-		dumpReadme();
+		usage();
 		return EXIT_SUCCESS;
 	}
 	if(argc<3 || argc > 6){
@@ -205,12 +227,11 @@ int main(int argc, char * const argv[]) {
 		perror("talker: sendto");
 		return EXIT_FAILURE;
 	}
-	
-/*	wcpacket_t* incpacket;
-	while(recvfrom(incomingSock, incpacket, sizeof(wcpacket_t), 0,NULL, 0) != -1) {
+	wcpacket_t* incpacket;
+	while((incpacket = recvpacket(incomingSock)) != NULL) {
 		
-		//cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n"<<incpacket->data <<endl;
+		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n"<<incpacket->data <<"\n\n";
+		delete incpacket;
 	}
-*/
 	return EXIT_SUCCESS;
 }
