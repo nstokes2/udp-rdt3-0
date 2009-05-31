@@ -69,6 +69,20 @@ wcpacket_t* recvpacket(int sockfd)
 	
 }
 
+/*
+ * void send_packet(int sockfd, int sqn)
+ * Creates an ACK packet to send
+ * sockfd, socket that we're sending to
+ * sqn - sequence number
+ * returns filled out packet
+ */
+void send_packet(int sockfd, int sqn, addrinfo* out)
+{
+	wcpacket_t* new_packet = new wcpacket_t;
+	new_packet->seqnum = sqn;
+	sendto(sockfd, new_packet, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+}
+
 void usage(){
 	ifstream readme ("README");
 	string line = "";
@@ -230,7 +244,9 @@ int main(int argc, char * const argv[]) {
 	wcpacket_t* incpacket;
 	while((incpacket = recvpacket(incomingSock)) != NULL) {
 		
-		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n"<<incpacket->data <<"\n\n";
+		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
+		//immediately send ack for the packet
+		send_packet(requestSock, incpacket->seqnum, out);
 		delete incpacket;
 	}
 	return EXIT_SUCCESS;

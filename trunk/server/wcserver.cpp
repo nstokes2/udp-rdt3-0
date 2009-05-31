@@ -22,7 +22,8 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <signal.h>
-
+#include <queue>
+#include  <fcntl.h>
 #include <iostream>
 #include <fstream>
 using namespace std;
@@ -32,8 +33,7 @@ using namespace std;
 #define ENDPORT 65535	// end of port pool we can use
 #define MMS 1400
 
-
-
+#define WINDOWSIZE 5 //size of dong window
 pid_t child;
 /*
  * WCPACKET
@@ -77,12 +77,32 @@ wcpacket_t* create_packet(void* is, int sequence)
 	wcpacket_t* new_packet = new wcpacket_t;
 	memset(new_packet->data, 0, MAXPACKETDATA);
 	fp->read(new_packet->data, MAXPACKETDATA);
-	cout << "packet: "<< new_packet->seqnum << "\n data: \n";
-	printf("%s\n", new_packet->data);
+	//cout << "packet: "<< new_packet->seqnum << "\n data: \n";
+	//printf("%s\n", new_packet->data);
 	new_packet->seqnum = sequence;
 	return new_packet;
 }
 
+wcpacket_t* recv_packet(int isockfd)
+{
+	if(!isockfd)
+		return NULL;
+	
+	wcpacket_t* recvd = new wcpacket_t;
+	if(recvfrom(isockfd, recvd, sizeof(wcpacket_t), 0,NULL, 0) <= 0)
+	{
+		perror("recv failure");
+		delete recvd;
+		return NULL;
+	}
+	return recvd;
+	
+}
+								  
+/*
+ * PTHREAD MAGICKS
+ *
+ */
 
 /*
 * void handle_sigchld(int signal)
@@ -158,6 +178,7 @@ addrinfo* createReceivingSocket(const char* port, int& sockfd){
 	if (p == NULL) {
 		cerr << "Failed to bind incoming socket\n";
 	}
+	
 	freeaddrinfo(servinfo);
 	return p;
 }
@@ -246,20 +267,46 @@ int main(void)
 				else{
 					cout << "I AM PREPARING TO SEND"<<endl;
 					int i=0;
+					int active_packets = 0;
 					long sentdata = 0;
 					//get file size so things don't explode
 					//things still explode anyways.
-					while(content.good()){
-						wcpacket_t* send = create_packet(&content, i++); //create a packet out of our file
-						if(!send)
+					fcntl(incomingSock, F_SETFL, O_NONBLOCK); // set our recv sock to not block
+								 queue < wcpacket_t* > active_window;
+					while(content.good() || active_window.size() > 0){
+						if(active_window.size() < WINDOWSIZE-1 && content.good())
 						{
-							cerr << "SHET SHET GUIZ"<<endl;
-							break;
+							wcpacket_t* send = create_packet(&content, i++); //create a packet out of our file
+							active_window.push(send);
+							if(!send)
+							{
+								cerr << "SHET SHET GUIZ"<<endl;
+								break;
+							}
+						
+							else {
+								sentdata+= send->size;
+								sendto(requestSock, send, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+							}
 						}
-						else {
-							sentdata+= send->size;
-							sendto(requestSock, send, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
-							delete send;
+						//ok, recieve ack
+						wcpacket_t* recv;
+						recv = recv_packet(incomingSock);
+						if(recv)
+						{
+							cout << "ACK # "<< recv->seqnum<<endl;
+							if(recv->seqnum != active_window.front()->seqnum)
+							{
+								cout << "resending packet: "<<active_window.front()->seqnum <<endl;
+								//we recieved an out of order ack, assume shit sux and resend
+								sendto(requestSock, active_window.front(), sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+							}
+							else
+							{
+								delete active_window.front();
+								active_window.pop();
+							}
+							delete recv;
 						}
 					}
 					
