@@ -274,19 +274,25 @@ int main(void)
 				//	fcntl(incomingSock, F_SETFL, O_NONBLOCK); // set our recv sock to not block
 					queue < wcpacket_t* > active_window;
 					while(content.good() || active_window.size() > 0){
-						if(active_window.size() < WINDOWSIZE-1 && content.good())
+						while(active_window.size() < WINDOWSIZE && content.good())
 						{
 							wcpacket_t* send = create_packet(&content, i++); //create a packet out of our file
 							active_window.push(send);
-							if(!send)
-							{
-								cerr << "SHET SHET GUIZ"<<endl;
-								break;
+							sentdata+= send->size;
+							if(active_window.size() == WINDOWSIZE || !content.good()){
+								queue < wcpacket_t* > temp_window;
+								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
+									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+									temp_window.push(curr);
+									active_window.pop();
+								}
+								for(wcpacket_t* curr=temp_window.front(); !temp_window.empty(); curr=temp_window.front()){
+									active_window.push(curr);
+									temp_window.pop();
+								}
+								i=0;
 							}
-							else {
-								sentdata+= send->size;
-								sendto(requestSock, send, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
-							}
+							
 						}
 						//ok, recieve ack
 						wcpacket_t* recv;
@@ -294,8 +300,11 @@ int main(void)
 						if(recv)
 						{
 							cout << "ACK # "<< recv->seqnum<<endl;
+							
 							if(recv->seqnum != active_window.back()->seqnum)
 							{
+								cout << active_window.size();
+								cout << "Wrong ack";
 								queue < wcpacket_t* > temp_window;
 								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
 									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
@@ -315,6 +324,8 @@ int main(void)
 // 							}
 							else
 							{
+								cout << active_window.size();
+								cout << "Correct ack";
 								while(!active_window.empty())
 									active_window.pop();
 							}
