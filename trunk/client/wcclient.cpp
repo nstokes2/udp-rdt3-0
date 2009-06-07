@@ -242,11 +242,27 @@ int main(int argc, char * const argv[]) {
 		return EXIT_FAILURE;
 	}
 	wcpacket_t* incpacket;
+	int recv_packets = 1;
 	while((incpacket = recvpacket(incomingSock)) != NULL) {
 		
 		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
-		//immediately send ack for the packet
-		send_packet(requestSock, incpacket->seqnum, out);
+		//immediately send ack for the packeturrr
+		//durr h
+		if(incpacket->seqnum > recv_packets)
+		{
+			//we missed a packet some where
+			send_packet(requestSock, -(recv_packets+1), out);
+
+			recv_packets = 1;
+		}
+		if(recv_packets == 5)
+			//we got em all
+		{
+			send_packet(requestSock, incpacket->seqnum, out);
+			recv_packets = 1;
+		}
+		
+		recv_packets++;
 		delete incpacket;
 	}
 	return EXIT_SUCCESS;
