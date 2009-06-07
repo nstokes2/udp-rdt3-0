@@ -17,6 +17,7 @@
 #include <netdb.h>
 #include <iostream>
 #include <string.h>
+#include <fcntl.h>
 #include <ctype.h>
 #include <queue>
 #include "config.h"
@@ -249,12 +250,21 @@ int main(int argc, char * const argv[]) {
 		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
 		//immediately send ack for the packeturrr
 		//durr h
+		
 		temp_window.push(incpacket);
 		
-		if(incpacket->seqnum > temp_window.size() || rand()%4 == 3)
+		if(incpacket->seqnum > temp_window.size() || rand() % 5 == 4)
 		{
 			//we missed a packet some where
 			cout << "DICKS\n";
+			
+			wcpacket_t* s;
+			fcntl(incomingSock, F_SETFL, O_NONBLOCK);
+			while((s = recvpacket(incomingSock))!= NULL)
+				delete s;
+			
+			fcntl(incomingSock, F_SETFL, !O_NONBLOCK);
+			cout << "SENDING NACK\n";
 			send_packet(requestSock, -1, out);
 			while(!temp_window.empty())
 				temp_window.pop();

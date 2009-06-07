@@ -271,20 +271,19 @@ int main(void)
 					long sentdata = 0;
 					//get file size so things don't explode
 					//things still explode anyways.
-					fcntl(incomingSock, F_SETFL, O_NONBLOCK); // set our recv sock to not block
 					queue < wcpacket_t* > active_window;
 					while(content.good() || active_window.size() > 0){
 						while(active_window.size() < WINDOWSIZE && content.good())
 						{
 							wcpacket_t* send = create_packet(&content, i++); //create a packet out of our file
-							wcpacket_t* recv = recv_packet(incomingSock);
-							if(recv)
-								goto resend;
+							
+				
 							active_window.push(send);
 							sentdata+= send->size;
 							if(active_window.size() == WINDOWSIZE || !content.good()){
 								queue < wcpacket_t* > temp_window;
 								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
+									cout << "sending : #" << curr->seqnum << "\n";
 									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
 									temp_window.push(curr);
 									active_window.pop();
@@ -298,23 +297,25 @@ int main(void)
 							
 						}
 						//ok, recieve ack
+						
 						wcpacket_t* recv;
 						recv = recv_packet(incomingSock);
 						if(recv)
 						{
 							cout << "ACK # "<< recv->seqnum<<endl;
 							
-							if(recv->seqnum != active_window.back()->seqnum)
+							if(recv->seqnum == -1)
 							{
-resend:
 								cout << active_window.size();
-								cout << "Wrong ack";
+								cout << "Wrong ack\n";
 								queue < wcpacket_t* > temp_window;
 								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
+									cout << curr->seqnum << "\n";
 									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
 									temp_window.push(curr);
 									active_window.pop();
 								}
+
 								for(wcpacket_t* curr=temp_window.front(); !temp_window.empty(); curr=temp_window.front()){
 									active_window.push(curr);
 									temp_window.pop();
@@ -329,7 +330,7 @@ resend:
 							else
 							{
 								cout << active_window.size();
-								cout << "Correct ack";
+								cout << "Correct ack\n";
 								while(!active_window.empty())
 									active_window.pop();
 							}
