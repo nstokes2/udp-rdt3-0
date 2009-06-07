@@ -272,7 +272,7 @@ int main(void)
 					//get file size so things don't explode
 					//things still explode anyways.
 					fcntl(incomingSock, F_SETFL, O_NONBLOCK); // set our recv sock to not block
-								 queue < wcpacket_t* > active_window;
+					queue < wcpacket_t* > active_window;
 					while(content.good() || active_window.size() > 0){
 						if(active_window.size() < WINDOWSIZE-1 && content.good())
 						{
@@ -283,7 +283,6 @@ int main(void)
 								cerr << "SHET SHET GUIZ"<<endl;
 								break;
 							}
-						
 							else {
 								sentdata+= send->size;
 								sendto(requestSock, send, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
@@ -295,16 +294,29 @@ int main(void)
 						if(recv)
 						{
 							cout << "ACK # "<< recv->seqnum<<endl;
-							if(recv->seqnum != active_window.front()->seqnum)
+							if(recv->seqnum != active_window.back()->seqnum)
 							{
-								cout << "resending packet: "<<active_window.front()->seqnum <<endl;
-								//we recieved an out of order ack, assume shit sux and resend
-								sendto(requestSock, active_window.front(), sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+								queue < wcpacket_t* > temp_window;
+								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
+									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+									temp_window.push(curr);
+									active_window.pop();
+								}
+								for(wcpacket_t* curr=temp_window.front(); !temp_window.empty(); curr=temp_window.front()){
+									active_window.push(curr);
+									temp_window.pop();
+								}		
 							}
+// 							if(recv->seqnum != active_window.front()->seqnum)
+// 							{
+// 								cout << "resending packet: "<<active_window.front()->seqnum <<endl;
+// 								//we recieved an out of order ack, assume shit sux and resend
+// 								sendto(requestSock, active_window.front(), sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+// 							}
 							else
 							{
-								delete active_window.front();
-								active_window.pop();
+								while(!active_window.empty())
+									active_window.pop();
 							}
 							delete recv;
 						}
