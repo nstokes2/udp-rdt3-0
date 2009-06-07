@@ -271,12 +271,15 @@ int main(void)
 					long sentdata = 0;
 					//get file size so things don't explode
 					//things still explode anyways.
-				//	fcntl(incomingSock, F_SETFL, O_NONBLOCK); // set our recv sock to not block
+					fcntl(incomingSock, F_SETFL, O_NONBLOCK); // set our recv sock to not block
 					queue < wcpacket_t* > active_window;
 					while(content.good() || active_window.size() > 0){
 						while(active_window.size() < WINDOWSIZE && content.good())
 						{
 							wcpacket_t* send = create_packet(&content, i++); //create a packet out of our file
+							wcpacket_t* recv = recv_packet(incomingSock);
+							if(recv)
+								goto resend;
 							active_window.push(send);
 							sentdata+= send->size;
 							if(active_window.size() == WINDOWSIZE || !content.good()){
@@ -303,6 +306,7 @@ int main(void)
 							
 							if(recv->seqnum != active_window.back()->seqnum)
 							{
+resend:
 								cout << active_window.size();
 								cout << "Wrong ack";
 								queue < wcpacket_t* > temp_window;
