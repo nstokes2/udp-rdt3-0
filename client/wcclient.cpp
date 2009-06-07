@@ -249,6 +249,8 @@ int main(int argc, char * const argv[]) {
 		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
 		//immediately send ack for the packeturrr
 		//durr h
+		
+		recv_packets++;
 		if(incpacket->seqnum > recv_packets)
 		{
 			//we missed a packet some where
@@ -257,7 +259,7 @@ int main(int argc, char * const argv[]) {
 
 			recv_packets = 0;
 		}
-		if(recv_packets == WINDOWSIZE -1)
+		else if(recv_packets == WINDOWSIZE -1)
 			//we got em all POKEMON
 		{
 			cout << "BUTS\n";
@@ -265,7 +267,6 @@ int main(int argc, char * const argv[]) {
 			recv_packets = 0;
 		}
 		
-		recv_packets++;
 		delete incpacket;
 	}
 	return EXIT_SUCCESS;
