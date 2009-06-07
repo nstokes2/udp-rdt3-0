@@ -18,6 +18,7 @@
 #include <iostream>
 #include <string.h>
 #include <ctype.h>
+#include <queue>
 #include "config.h"
 
 using namespace std;
@@ -26,7 +27,7 @@ using namespace std;
 #define ENDPORT 65535	// end of port pool we can use
 #define MMS 1500
 
-#define WINDOWSIZE 5 //size of dong window
+#define WINDOWSIZE 7 //size of dong window
 
 /*
  * WCPACKET
@@ -243,28 +244,28 @@ int main(int argc, char * const argv[]) {
 		return EXIT_FAILURE;
 	}
 	wcpacket_t* incpacket;
-	int recv_packets = 0;
+	queue < wcpacket_t* > temp_window;
 	while((incpacket = recvpacket(incomingSock)) != NULL) {
-		
 		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
 		//immediately send ack for the packeturrr
 		//durr h
+		temp_window.push(incpacket);
 		
-		recv_packets++;
-		if(incpacket->seqnum > recv_packets)
+		if(incpacket->seqnum > temp_window.size() || rand()%4 == 3)
 		{
 			//we missed a packet some where
 			cout << "DICKS\n";
-			send_packet(requestSock, -(recv_packets+1), out);
-
-			recv_packets = 0;
+			send_packet(requestSock, -1, out);
+			while(!temp_window.empty())
+				temp_window.pop();
 		}
-		else if(recv_packets == WINDOWSIZE -1)
+		else if(temp_window.size() == WINDOWSIZE)
 			//we got em all POKEMON
 		{
 			cout << "BUTS\n";
 			send_packet(requestSock, incpacket->seqnum, out);
-			recv_packets = 0;
+			while(!temp_window.empty())
+				temp_window.pop();
 		}
 		
 		delete incpacket;
