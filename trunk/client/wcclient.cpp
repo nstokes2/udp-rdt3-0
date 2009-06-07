@@ -252,6 +252,7 @@ int main(int argc, char * const argv[]) {
 		if(incpacket->seqnum > recv_packets)
 		{
 			//we missed a packet some where
+			cout << "DICKS\n";
 			send_packet(requestSock, -(recv_packets+1), out);
 
 			recv_packets = 0;
@@ -259,6 +260,7 @@ int main(int argc, char * const argv[]) {
 		if(recv_packets == WINDOWSIZE -1)
 			//we got em all POKEMON
 		{
+			cout << "BUTS\n";
 			send_packet(requestSock, incpacket->seqnum, out);
 			recv_packets = 0;
 		}
