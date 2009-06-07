@@ -26,6 +26,7 @@ using namespace std;
 #define ENDPORT 65535	// end of port pool we can use
 #define MMS 1500
 
+#define WINDOWSIZE 5 //size of dong window
 
 /*
  * WCPACKET
@@ -242,7 +243,7 @@ int main(int argc, char * const argv[]) {
 		return EXIT_FAILURE;
 	}
 	wcpacket_t* incpacket;
-	int recv_packets = 1;
+	int recv_packets = 0;
 	while((incpacket = recvpacket(incomingSock)) != NULL) {
 		
 		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
@@ -253,13 +254,13 @@ int main(int argc, char * const argv[]) {
 			//we missed a packet some where
 			send_packet(requestSock, -(recv_packets+1), out);
 
-			recv_packets = 1;
+			recv_packets = 0;
 		}
-		if(recv_packets == 5)
-			//we got em all
+		if(recv_packets == WINDOWSIZE -1)
+			//we got em all POKEMON
 		{
 			send_packet(requestSock, incpacket->seqnum, out);
-			recv_packets = 1;
+			recv_packets = 0;
 		}
 		
 		recv_packets++;
