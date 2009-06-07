@@ -33,7 +33,7 @@ using namespace std;
 #define ENDPORT 65535	// end of port pool we can use
 #define MMS 1400
 
-#define WINDOWSIZE 5 //size of dong window
+#define WINDOWSIZE 7 //size of dong window
 pid_t child;
 /*
  * WCPACKET
