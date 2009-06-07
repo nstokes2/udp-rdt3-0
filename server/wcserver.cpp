@@ -271,7 +271,7 @@ int main(void)
 					long sentdata = 0;
 					//get file size so things don't explode
 					//things still explode anyways.
-					fcntl(incomingSock, F_SETFL, O_NONBLOCK); // set our recv sock to not block
+				//	fcntl(incomingSock, F_SETFL, O_NONBLOCK); // set our recv sock to not block
 					queue < wcpacket_t* > active_window;
 					while(content.good() || active_window.size() > 0){
 						if(active_window.size() < WINDOWSIZE-1 && content.good())
