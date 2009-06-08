@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <queue>
+#include <time.h>
 #include "config.h"
 
 using namespace std;
@@ -48,6 +49,7 @@ struct wcpacket_t
 	//some kind of shit
 	char data[MAXPACKETDATA];
 	int size;
+	char checksum[10];
 };
 
 /*
@@ -62,6 +64,7 @@ wcpacket_t* recvpacket(int sockfd)
 		return NULL;
 	
 	wcpacket_t* recvd = new wcpacket_t;
+	memset(recvd, 0, sizeof(wcpacket_t));
 	if(recvfrom(sockfd, recvd, sizeof(wcpacket_t), 0,NULL, 0) <= 0)
 	{
 		perror("recv failure");
@@ -163,7 +166,15 @@ addrinfo* createReceivingSocket(const char* port, int& sockfd){
 	freeaddrinfo(servinfo);
 	return p;
 }
+bool validateChecksum(wcpacket_t* packet){
+	for(size_t i=0; i<10 && i<strlen(packet->data); i++){
+		if (packet->checksum[i]!=packet->data[i]+5)
+			return false;
+	}
+	return true;
+}
 int main(int argc, char * const argv[]) {
+	time_t starttime = time(NULL);
 	if(argc>1 &&!strcmp(argv[1],"help")){
 		usage();
 		return EXIT_SUCCESS;
@@ -180,6 +191,16 @@ int main(int argc, char * const argv[]) {
 			usage();
 			return EXIT_SUCCESS;
 		}
+	}
+	int pl=0;
+	int pc=0;
+	if(argc == 6){	
+		int four = atoi(argv[4]);
+		int five = atoi(argv[5]);
+		if(four>=0 && four<100)
+		pl = four;
+		if(five>=0 && five<100)
+		pc = five;
 	}
 	srand ( time(NULL) );
 	int incomingPort = rand() %(ENDPORT-STARTPORT) + STARTPORT;
@@ -247,59 +268,91 @@ int main(int argc, char * const argv[]) {
 	}
 	wcpacket_t* incpacket;
 	queue < wcpacket_t* > temp_window;
-	FILE * incomingFile;
-	incomingFile = fopen (filename.c_str(), "wb");
+	ofstream incomingFile;
+	incomingFile.open(filename.c_str());
 	
 	while((incpacket = recvpacket(incomingSock)) != NULL) {
-		//cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
-		//cout << incpacket->data;
-		//immediately send ack for the packeturrr
-		//durr h
 		
-		cout << incpacket->seqnum;
+		
 		if(incpacket->seqnum == -5)
 		{
-			//LAST PACKET! GO AWAY
-			cout <<"DONE";
+			//Received Fin signal, do final file writing and close connection
 			for(wcpacket_t* temp = temp_window.front(); !temp_window.empty(); temp=temp_window.front()){
-			cout << temp->seqnum;
-				//cout << temp->data;
+				incomingFile << temp->data;
+				delete temp_window.front();
 				temp_window.pop();
 			}
-			delete incpacket;
-			fclose (incomingFile);
+			
+			requestMessage = "QUIT";
+			sendto(requestSock, requestMessage.c_str(), requestMessage.size()+1, 0,
+			 out->ai_addr, out->ai_addrlen);
+			cout << "\n";
+			time_t endtime = time(NULL);
+			double difference = difftime(endtime, starttime);
+			long begin, end;
+			incomingFile.close();
+			ifstream checkFile;
+			checkFile.open(filename.c_str());
+			begin = checkFile.tellg();
+			checkFile.seekg (0, ios::end);
+			end = checkFile.tellg();
+
+			cout << "Transfer ";
+			cout << filename;
+			cout << " is complete\n";
+			cout << "Time used: " << difference << " seconds\n";
+			double speed = 0;
+			if(difference == 0){
+				speed = end-begin;
+			}
+			else{
+				speed = (end-begin) / difference;
+			}
+			cout << "Average transfer rate: ";
+			cout << speed/1000;
+			cout << "KB/s\n\n";
+			incomingFile.close();
 			return 0;
 		}
+		cout << "Received packet sequence # " << incpacket->seqnum << "\n";//<<incpacket->data <<"\n\n";
+		cout << "Checksum: " << incpacket->checksum << "\n";
 
 		temp_window.push(incpacket);
-		delete incpacket;
-		if(temp_window.front()->seqnum > temp_window.size())
+		int randomL = rand()%100 + 1;
+		if((size_t)temp_window.front()->seqnum > temp_window.size() || !validateChecksum(temp_window.front()) || randomL <= pl || randomL <=pc)
 		{
-			//we missed a packet some where
-			cout << "DICKS\n";
-			
+			//we missed a packet some where			
 			wcpacket_t* s;
 			fcntl(incomingSock, F_SETFL, O_NONBLOCK);
 			while((s = recvpacket(incomingSock))!= NULL)
 				delete s;
-			
+			// Send nack
 			fcntl(incomingSock, F_SETFL, !O_NONBLOCK);
-			cout << "SENDING NACK\n";
 			send_packet(requestSock, -1, out);
-			while(!temp_window.empty())
+			if(randomL <= pc ||!validateChecksum(temp_window.front()) ){
+				cout << "Packet courrpted, sending nack\n";
+			}
+			else{
+				cout << "Packet Loss\n";
+			}
+			while(!temp_window.empty()){
+				delete temp_window.front();
 				temp_window.pop();
+			}
+			
+			
 		}
 		else if(temp_window.size() == WINDOWSIZE)
-			//we got em all POKEMON
 		{
-			cout << "BUTS\n";
+			// One sequence has completed, send cumlative ack.
 			for(wcpacket_t* temp = temp_window.front(); !temp_window.empty(); temp=temp_window.front()){
-				cout << temp->seqnum;
-				//cout << temp->data;
+				incomingFile << temp->data;
+				delete temp_window.front();
 				temp_window.pop();
 			}
 			send_packet(requestSock, incpacket->seqnum, out);
 		}
+		cout << "\n";
 	}
 	return EXIT_SUCCESS;
 }
