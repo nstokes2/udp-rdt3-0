@@ -223,8 +223,9 @@ int main(int argc, char * const argv[]) {
 
 
 	requestMessage = "";
+	string filename = "";
 	if(argc>3){
-		string filename = argv[3];
+		filename = argv[3];
 		requestMessage = "RETR " + filename + "\n\n";
 		cout << requestMessage;
 	}
@@ -246,22 +247,33 @@ int main(int argc, char * const argv[]) {
 	}
 	wcpacket_t* incpacket;
 	queue < wcpacket_t* > temp_window;
+	FILE * incomingFile;
+	incomingFile = fopen (filename.c_str(), "wb");
+	
 	while((incpacket = recvpacket(incomingSock)) != NULL) {
-		cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
+		//cout << "SERVER SAYS: packet #" << incpacket->seqnum << "\n\n";//<<incpacket->data <<"\n\n";
+		//cout << incpacket->data;
 		//immediately send ack for the packeturrr
 		//durr h
 		
-		
+		cout << incpacket->seqnum;
 		if(incpacket->seqnum == -5)
 		{
 			//LAST PACKET! GO AWAY
 			cout <<"DONE";
+			for(wcpacket_t* temp = temp_window.front(); !temp_window.empty(); temp=temp_window.front()){
+			cout << temp->seqnum;
+				//cout << temp->data;
+				temp_window.pop();
+			}
 			delete incpacket;
-			break;
+			fclose (incomingFile);
+			return 0;
 		}
+
 		temp_window.push(incpacket);
-		
-		if(incpacket->seqnum > temp_window.size() || rand() % 5 == 4)
+		delete incpacket;
+		if(temp_window.front()->seqnum > temp_window.size())
 		{
 			//we missed a packet some where
 			cout << "DICKS\n";
@@ -281,12 +293,13 @@ int main(int argc, char * const argv[]) {
 			//we got em all POKEMON
 		{
 			cout << "BUTS\n";
-			send_packet(requestSock, incpacket->seqnum, out);
-			while(!temp_window.empty())
+			for(wcpacket_t* temp = temp_window.front(); !temp_window.empty(); temp=temp_window.front()){
+				cout << temp->seqnum;
+				//cout << temp->data;
 				temp_window.pop();
+			}
+			send_packet(requestSock, incpacket->seqnum, out);
 		}
-
-		delete incpacket;
 	}
 	return EXIT_SUCCESS;
 }
