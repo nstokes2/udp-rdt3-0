@@ -326,8 +326,8 @@ int main(int argc, char * const argv[]) {
 			done = true;
 			continue;
 		}
-		cout << "Received packet sequence # " << incpacket->seqnum << "\n";//<<incpacket->data <<"\n\n";
-		cout << "Checksum: " << incpacket->checksum << "\n";
+	//	cout << "Received packet sequence # " << incpacket->seqnum << "\n";//<<incpacket->data <<"\n\n";
+	//	cout << "Checksum: " << incpacket->checksum << "\n";
 
 		temp_window.push(incpacket);
 		int randomL = rand()%100 + 1;
@@ -367,7 +367,7 @@ int main(int argc, char * const argv[]) {
 			runs++;
 			send_packet(requestSock, incpacket->seqnum, out);
 		}
-		cout << "\n";
+		//cout << "\n";
 	}
 	return EXIT_SUCCESS;
 }

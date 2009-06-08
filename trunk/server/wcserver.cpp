@@ -72,7 +72,7 @@ wcpacket_t* create_packet(void* is, int sequence)
 	iostream* fp = (iostream*)is;
 	if(!fp)
 	{
-		cout << "FILE IS DEAD" <<endl;
+		//cout << "FILE IS DEAD" <<endl;
 		return NULL;
 	}
 	wcpacket_t* new_packet = new wcpacket_t;
@@ -81,7 +81,7 @@ wcpacket_t* create_packet(void* is, int sequence)
 	//cout << "packet: "<< new_packet->seqnum << "\n data: \n";
 	//printf("%s\n", new_packet->data);
 	new_packet->seqnum = sequence;
-	for(int i=0; i<10 && i<strlen(new_packet->data); i++){
+	for(unsigned int i=0; i<10 && i<strlen(new_packet->data); i++){
 		new_packet->checksum[i] = new_packet->data[i]+5;
 	}
 	return new_packet;
@@ -118,7 +118,7 @@ void handle_sigchld(int signal)
 	
 		int status;
 		waitpid(child, &status, WNOHANG);
-		cout << "Child process " << child <<" exited with exit status " << WEXITSTATUS(status)<< endl;
+	//	cout << "Child process " << child <<" exited with exit status " << WEXITSTATUS(status)<< endl;
 }
 
 // get sockaddr, IPv4 or IPv6:
@@ -269,9 +269,9 @@ int main(void)
 					cout << "File " << filename << " not found";
 				}
 				else{
-					cout << "I AM PREPARING TO SEND"<<endl;
+				//	cout << "I AM PREPARING TO SEND"<<endl;
 					int i=0;
-					int active_packets = 0;
+				//	int active_packets = 0;
 					long sentdata = 0;
 					bool done = false;
 					//get file size so things don't explode
@@ -288,8 +288,8 @@ int main(void)
 							if(active_window.size() == WINDOWSIZE || !content.good()){
 								queue < wcpacket_t* > temp_window;
 								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
-									cout << "sending : #" << curr->seqnum << "\n";
-									cout << curr->checksum;
+							//		cout << "sending : #" << curr->seqnum << "\n";
+							//		cout << curr->checksum;
 									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
 									temp_window.push(curr);
 									active_window.pop();
@@ -303,7 +303,7 @@ int main(void)
 						}
 						if(!content.good() && !done)
 						{
-							cout << "DONE";
+						//	cout << "DONE";
 							wcpacket_t* final = new wcpacket_t;
 							memset(final->data, 0, MAXPACKETDATA);
 							final->seqnum = -5;
@@ -317,15 +317,15 @@ int main(void)
 						recv = recv_packet(incomingSock);
 						if(recv)
 						{
-							cout << "ACK # "<< recv->seqnum<<endl;
+						//	cout << "ACK # "<< recv->seqnum<<endl;
 							
 							if(recv->seqnum == -1)
 							{
-								cout << active_window.size();
-								cout << "Wrong ack\n";
+							//	cout << active_window.size();
+							//	cout << "Wrong ack\n";
 								queue < wcpacket_t* > temp_window;
 								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
-									cout << curr->seqnum << "\n";
+								//	cout << curr->seqnum << "\n";
 									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
 									temp_window.push(curr);
 									active_window.pop();
@@ -344,8 +344,8 @@ int main(void)
 // 							}
 							else
 							{
-								cout << active_window.size();
-								cout << "Correct ack\n";
+							//	cout << active_window.size();
+							//	cout << "Correct ack\n";
 								while(!active_window.empty())
 									active_window.pop();
 							}
