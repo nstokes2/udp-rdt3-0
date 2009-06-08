@@ -340,9 +340,10 @@ int main(int argc, char * const argv[]) {
 				delete s;
 			// Send nack
 			fcntl(incomingSock, F_SETFL, !O_NONBLOCK);
-			send_packet(requestSock, -1, out);
-			if(randomL <= pc ||!validateChecksum(temp_window.front()) ){
+			
+			if(randomL <= pc || !validateChecksum(temp_window.front()) ){
 				cout << "Packet courrpted, sending nack\n";
+				send_packet(requestSock, -1, out);
 			}
 			else{
 				cout << "Packet Loss\n";
