@@ -270,11 +270,12 @@ int main(int argc, char * const argv[]) {
 	queue < wcpacket_t* > temp_window;
 	ofstream incomingFile;
 	incomingFile.open(filename.c_str());
-	
+	bool done = false;
+	int runs = 0;
 	while((incpacket = recvpacket(incomingSock)) != NULL) {
 		
 		
-		if(incpacket->seqnum == -5)
+		if(incpacket->seqnum == -5 && (done&&runs>0))
 		{
 			//Received Fin signal, do final file writing and close connection
 			for(wcpacket_t* temp = temp_window.front(); !temp_window.empty(); temp=temp_window.front()){
@@ -282,10 +283,6 @@ int main(int argc, char * const argv[]) {
 				delete temp_window.front();
 				temp_window.pop();
 			}
-			
-			requestMessage = "QUIT";
-			sendto(requestSock, requestMessage.c_str(), requestMessage.size()+1, 0,
-			 out->ai_addr, out->ai_addrlen);
 			cout << "\n";
 			time_t endtime = time(NULL);
 			double difference = difftime(endtime, starttime);
@@ -314,6 +311,20 @@ int main(int argc, char * const argv[]) {
 			incomingFile.close();
 			return 0;
 		}
+		else if(incpacket->seqnum == -5 && (!done && runs>0)){
+			wcpacket_t* s;
+			fcntl(incomingSock, F_SETFL, O_NONBLOCK);
+			while((s = recvpacket(incomingSock))!= NULL)
+				delete s;
+			fcntl(incomingSock, F_SETFL, !O_NONBLOCK);
+			while(!temp_window.empty()){
+				delete temp_window.front();
+				temp_window.pop();
+			}
+			send_packet(requestSock, -1, out);
+			done = true;
+			continue;
+		}
 		cout << "Received packet sequence # " << incpacket->seqnum << "\n";//<<incpacket->data <<"\n\n";
 		cout << "Checksum: " << incpacket->checksum << "\n";
 
@@ -339,6 +350,7 @@ int main(int argc, char * const argv[]) {
 				delete temp_window.front();
 				temp_window.pop();
 			}
+			done = false;
 			
 			
 		}
@@ -350,6 +362,8 @@ int main(int argc, char * const argv[]) {
 				delete temp_window.front();
 				temp_window.pop();
 			}
+			done = true;
+			runs++;
 			send_packet(requestSock, incpacket->seqnum, out);
 		}
 		cout << "\n";
