@@ -274,6 +274,11 @@ int main(int argc, char * const argv[]) {
 	int runs = 0;
 	while((incpacket = recvpacket(incomingSock)) != NULL) {
 		
+		if(incpacket->seqnum == -124)
+		{
+			cout << filename<<" not found\n";
+			break;
+		}
 		
 		if(incpacket->seqnum == -5 && (done&&runs>0))
 		{
