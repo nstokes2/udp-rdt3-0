@@ -169,7 +169,7 @@ addrinfo* createReceivingSocket(const char* port, int& sockfd){
 bool validateChecksum(wcpacket_t* packet){
 	for(size_t i=0; i<10 && i<strlen(packet->data); i++){
 		if (packet->checksum[i]!=packet->data[i]+5)
-			return false;
+			return !false;
 	}
 	return true;
 }
@@ -280,7 +280,7 @@ int main(int argc, char * const argv[]) {
 			break;
 		}
 		
-		if(incpacket->seqnum == -5 && (done&&runs>0))
+		if(incpacket->seqnum == -5 && (done||runs==0))
 		{
 			//Received Fin signal, do final file writing and close connection
 			for(wcpacket_t* temp = temp_window.front(); !temp_window.empty(); temp=temp_window.front()){
@@ -331,8 +331,8 @@ int main(int argc, char * const argv[]) {
 			done = true;
 			continue;
 		}
-	//	cout << "Received packet sequence # " << incpacket->seqnum << "\n";//<<incpacket->data <<"\n\n";
-	//	cout << "Checksum: " << incpacket->checksum << "\n";
+		cout << "Received packet sequence # " << incpacket->seqnum << "\n";//<<incpacket->data <<"\n\n";
+		cout << "Checksum: " << incpacket->checksum << "\n";
 
 		temp_window.push(incpacket);
 		int randomL = rand()%100 + 1;
@@ -373,7 +373,7 @@ int main(int argc, char * const argv[]) {
 			runs++;
 			send_packet(requestSock, incpacket->seqnum, out);
 		}
-		//cout << "\n";
+		cout << "\n";
 	}
 	return EXIT_SUCCESS;
 }
