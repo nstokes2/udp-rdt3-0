@@ -267,6 +267,10 @@ int main(void)
 				content.open(filename);
 				if(!content){
 					cout << "File " << filename << " not found"<<endl;
+					wcpacket_t* temp = new wcpacket_t;
+					temp->seqnum = -124;
+					sendto(requestSock, temp, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+					delete temp;
 				}
 				else{
 				//	cout << "I AM PREPARING TO SEND"<<endl;
