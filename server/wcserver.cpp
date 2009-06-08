@@ -277,6 +277,10 @@ int main(void)
 					//get file size so things don't explode
 					//things still explode anyways.
 					queue < wcpacket_t* > active_window;
+					struct timeval tv;
+					tv.tv_sec = 0;
+					tv.tv_usec = 500; //timeout 
+					setsockopt(incomingSock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(timeval));
 					while(content.good() || active_window.size() > 0){
 						while(active_window.size() < WINDOWSIZE && content.good())
 						{
