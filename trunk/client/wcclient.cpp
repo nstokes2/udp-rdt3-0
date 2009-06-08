@@ -251,6 +251,14 @@ int main(int argc, char * const argv[]) {
 		//immediately send ack for the packeturrr
 		//durr h
 		
+		
+		if(incpacket->seqnum == -5)
+		{
+			//LAST PACKET! GO AWAY
+			cout <<"DONE";
+			delete incpacket;
+			break;
+		}
 		temp_window.push(incpacket);
 		
 		if(incpacket->seqnum > temp_window.size() || rand() % 5 == 4)
@@ -277,7 +285,7 @@ int main(int argc, char * const argv[]) {
 			while(!temp_window.empty())
 				temp_window.pop();
 		}
-		
+
 		delete incpacket;
 	}
 	return EXIT_SUCCESS;
