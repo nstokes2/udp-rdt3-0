@@ -54,6 +54,7 @@ struct wcpacket_t
 	//some kind of shit
 	char data[MAXPACKETDATA];
 	int size;
+	char checksum[10];
 };
 
 
@@ -80,6 +81,9 @@ wcpacket_t* create_packet(void* is, int sequence)
 	//cout << "packet: "<< new_packet->seqnum << "\n data: \n";
 	//printf("%s\n", new_packet->data);
 	new_packet->seqnum = sequence;
+	for(int i=0; i<10 && i<strlen(new_packet->data); i++){
+		new_packet->checksum[i] = new_packet->data[i]+5;
+	}
 	return new_packet;
 }
 
@@ -285,8 +289,8 @@ int main(void)
 								queue < wcpacket_t* > temp_window;
 								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
 									cout << "sending : #" << curr->seqnum << "\n";
+									cout << curr->checksum;
 									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
-									sleep(1);
 									temp_window.push(curr);
 									active_window.pop();
 								}
@@ -356,8 +360,9 @@ int main(void)
 				// REQUEST TO RETRIEVE FILE
 			}
 
-			close(incomingSock);
-			close(requestSock);
+			printf("Session from %s closed\n",remoteAddr.c_str());
+				close(incomingSock);
+				close(requestSock);
 			exit(9001);
 		}
     }
