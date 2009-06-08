@@ -309,6 +309,7 @@ int main(int argc, char * const argv[]) {
 			cout << speed/1000;
 			cout << "KB/s\n\n";
 			incomingFile.close();
+			send_packet(requestSock, -5, out);
 			return 0;
 		}
 		else if(incpacket->seqnum == -5 && (!done && runs>0)){
