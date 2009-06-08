@@ -202,7 +202,7 @@ int main(void)
 	
 	
     p = createReceivingSocket(MYPORT,recv_sockfd);
-
+	cout << "White Castle FTPD (c) 2009 White Castle Development, Inc.\n";
     cout << "Listening on port " << MYPORT << "\nWaiting for incoming connections\n";
     char buf[MMS];
     while(1){
@@ -269,6 +269,7 @@ int main(void)
 					int i=0;
 					int active_packets = 0;
 					long sentdata = 0;
+					bool done = false;
 					//get file size so things don't explode
 					//things still explode anyways.
 					queue < wcpacket_t* > active_window;
@@ -294,10 +295,19 @@ int main(void)
 								}
 								i=0;
 							}
-							
+						}
+						if(!content.good() && !done)
+						{
+							cout << "DONE";
+							wcpacket_t* final = new wcpacket_t;
+							memset(final->data, 0, MAXPACKETDATA);
+							final->seqnum = -5;
+							sendto(requestSock, final, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+							active_window.push(final);
+							done =true;
 						}
 						//ok, recieve ack
-						
+	
 						wcpacket_t* recv;
 						recv = recv_packet(incomingSock);
 						if(recv)
@@ -337,6 +347,9 @@ int main(void)
 							delete recv;
 						}
 					}
+					//we have finished transmitting file, lets trasnmit a final packet
+					//finalpacket
+					
 					
 				}
 				// REQUEST TO RETRIEVE FILE
