@@ -266,7 +266,7 @@ int main(void)
 				ifstream content;
 				content.open(filename);
 				if(!content){
-					cout << "File " << filename << " not found";
+					cout << "File " << filename << " not found"<<endl;
 				}
 				else{
 				//	cout << "I AM PREPARING TO SEND"<<endl;
@@ -354,6 +354,21 @@ int main(void)
 									active_window.pop();
 							}
 							delete recv;
+						}
+						else
+						{
+							queue < wcpacket_t* > temp_window;
+							for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
+							//	cout << curr->seqnum << "\n";
+								sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+								temp_window.push(curr);
+								active_window.pop();
+							}
+						
+							for(wcpacket_t* curr=temp_window.front(); !temp_window.empty(); curr=temp_window.front()){
+								active_window.push(curr);
+								temp_window.pop();
+							}	
 						}
 					}
 					//we have finished transmitting file, lets trasnmit a final packet
