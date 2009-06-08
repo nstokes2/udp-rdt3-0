@@ -286,6 +286,7 @@ int main(void)
 								for(wcpacket_t* curr=active_window.front(); !active_window.empty(); curr=active_window.front()){
 									cout << "sending : #" << curr->seqnum << "\n";
 									sendto(requestSock, curr, sizeof(wcpacket_t), 0, out->ai_addr, out->ai_addrlen);
+									sleep(1);
 									temp_window.push(curr);
 									active_window.pop();
 								}
